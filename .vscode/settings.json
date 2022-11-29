@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "*.html": "c",
+        "client2.h": "c",
+        "server2.h": "c"
+    }
+}

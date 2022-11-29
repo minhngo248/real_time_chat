@@ -35,6 +35,7 @@ static void app(void)
    char buffer[BUF_SIZE];
    char history[BUF_SIZE][BUF_SIZE];
    int actual_his = 0;
+   char name[BUF_SIZE];
    /* the index for the array */
    int actual = 0;
    int max = sock;
@@ -43,7 +44,19 @@ static void app(void)
    Client clients[MAX_CLIENTS];
 
    fd_set rdfs;
-
+   /* Charge history.txt to history[][] */
+   FILE *read_his = fopen("history.txt", "r");
+   char *str_temp = malloc(BUF_SIZE * sizeof(char));
+   fgets(str_temp, BUF_SIZE, read_his);
+   while (!feof(read_his))
+   {
+      strncpy(history[actual_his], str_temp, strlen(str_temp) - 1);
+      actual_his++;
+      free(str_temp);
+      str_temp = malloc(BUF_SIZE * sizeof(char));
+      fgets(str_temp, BUF_SIZE, read_his);
+   }
+   fclose(read_his);
    while (1)
    {
       i = 0;
@@ -98,6 +111,10 @@ static void app(void)
 
          Client c = {csock};
          strncpy(c.name, buffer, BUF_SIZE - 1);
+         for (i = 0; i < actual_his; i++)
+         {
+            write_client(c.sock, history[i]);
+         }
          clients[actual] = c;
          actual++;
       }
@@ -111,13 +128,13 @@ static void app(void)
             {
                Client client = clients[i];
                int c = read_client(clients[i].sock, buffer);
-               /* client disconnected */
-               if (c == 0)
+               if (c == 0) /* client disconnected */
                {
                   closesocket(clients[i].sock);
                   remove_client(clients, i, &actual);
                   strncpy(buffer, client.name, BUF_SIZE - 1);
                   strncat(buffer, " disconnected !", BUF_SIZE - strlen(buffer) - 1);
+                  printf("%s\n", buffer);
                   strncpy(history[actual_his], buffer, BUF_SIZE - 1);
                   actual_his++;
                   send_message_to_all_clients(clients, client, actual, buffer, 1);
@@ -125,10 +142,10 @@ static void app(void)
                else
                {
                   send_message_to_all_clients(clients, client, actual, buffer, 0);
-                  char* name;
-                  strncpy(name, client.name, BUF_SIZE - 1);
-                  strncat(name, " : ", BUF_SIZE-3-1);
-                  strncat(name, buffer, BUF_SIZE -3-1-strlen(buffer));
+                  strncpy(name, "", BUF_SIZE - 1);
+                  strncpy(name, client.name, strlen(client.name));
+                  strncat(name, " : ", 4);
+                  strncat(name, buffer, strlen(buffer));
                   strncpy(history[actual_his], name, BUF_SIZE - 1);
                   actual_his++;
                }
@@ -144,25 +161,12 @@ static void app(void)
    }
 
    /* Save the history of conversation in file */
-   
-   /*int fd_history;
-   if ((fd_history = open("history.txt", O_WRONLY | O_CREAT | O_TRUNC,
-                   S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) == -1) {
-      perror("Cannot open output file\n");
-      exit(1);
-   }
+   FILE *file_his = fopen("history.txt", "w");
    for (i = 0; i < actual_his; i++)
    {
-      write(fd_history, history[i], BUF_SIZE - 1);
+      fprintf(file_his, "%s\n", history[i]);
    }
-   close(fd_history);*/
-
-   FILE* file_history = fopen("history.txt", "w");
-   for (i = 0; i < actual_his; i++)
-   {
-      fprintf(file_history, "%s", history[i]);
-   }   
-   fclose(file_history);
+   fclose(file_his);
 
    clear_clients(clients, actual);
    end_connection(sock);

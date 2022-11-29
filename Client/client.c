@@ -29,7 +29,9 @@ static void app(const char *address, const char *name)
 {
    SOCKET sock = init_connection(address);
    char buffer[BUF_SIZE];
-
+   char buffer_temp[BUF_SIZE];
+   int i;
+   int index = 0;
    fd_set rdfs;
 
    /* send our name */
@@ -69,6 +71,7 @@ static void app(const char *address, const char *name)
             }
          }
          write_server(sock, buffer);
+                  
       }
       else if(FD_ISSET(sock, &rdfs))
       {
@@ -127,7 +130,7 @@ static int read_server(SOCKET sock, char *buffer)
 {
    int n = 0;
 
-   if((n = recv(sock, buffer, BUF_SIZE - 1, 0)) < 0)
+   if((n = recv(sock, buffer, BUF_SIZE, 0)) < 0)
    {
       perror("recv()");
       exit(errno);
