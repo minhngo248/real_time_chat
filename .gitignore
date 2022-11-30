@@ -1,4 +1,10 @@
 test
 test_str.c
+
+# VS Code
 .vscode/
 .vscode/*
+
+# Executable
+Server/server
+Client/client

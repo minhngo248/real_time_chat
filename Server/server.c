@@ -164,6 +164,10 @@ static void app(void)
                      break;
                   }
                }
+               if ( j == actual && client.sock_dest != -1 && client.sock_dest != 0)
+               {
+                  client.sock_dest = 0;
+               }
                int c = read_client(clients[i].sock, buffer);
                if (c == 0) /* client disconnected */
                {
@@ -192,7 +196,7 @@ static void app(void)
                   { // destinator is offline
                      char str[BUF_SIZE];
                      strncpy(str, "files/", 7);
-                     strncat(str, name_dest, strlen(name_dest));
+                     strncat(str, client.name_dest, strlen(client.name_dest));
                      strncat(str, ".txt", 5);
                      FILE *read_file = fopen(str, "r");
                      if (read_file == NULL)
