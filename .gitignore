@@ -1,2 +1,4 @@
 test
 test_str.c
+.vscode/
+.vscode/*

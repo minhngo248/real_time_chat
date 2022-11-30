@@ -35,17 +35,18 @@ static void app(void)
    char buffer[BUF_SIZE];
    char history[BUF_SIZE][BUF_SIZE];
    int actual_his = 0;
-   char name[BUF_SIZE];
+   char name[BUF_SIZE], name_dest[BUF_SIZE];
    /* the index for the array */
    int actual = 0;
    int max = sock;
    int i;
+   int sock_dest = 0;
    /* an array for all clients */
    Client clients[MAX_CLIENTS];
 
    fd_set rdfs;
    /* Charge history.txt to history[][] */
-   FILE *read_his = fopen("history.txt", "r");
+   FILE *read_his = fopen("files/history.txt", "r");
    char *str_temp = malloc(BUF_SIZE * sizeof(char));
    fgets(str_temp, BUF_SIZE, read_his);
    while (!feof(read_his))
@@ -103,14 +104,41 @@ static void app(void)
             /* disconnected */
             continue;
          }
-
+         for (i = 0; i < strlen(buffer); i++)
+         {
+            if (buffer[i] == '\n' || buffer[i] == '\0')
+               break;
+            name[i] = buffer[i];
+         }
+         name[i] = '\0';
+         int j;
+         for (j = i + 1; j < strlen(buffer); j++)
+         {
+            if (buffer[j] == '\0')
+               break;
+            name_dest[j - i - 1] = buffer[j];
+         }
+         name_dest[j - i - 1] = '\0';
          /* what is the new maximum fd ? */
          max = csock > max ? csock : max;
 
          FD_SET(csock, &rdfs);
 
-         Client c = {csock};
-         strncpy(c.name, buffer, BUF_SIZE - 1);
+         for (i = 0; i < actual; i++)
+         { /* Take socket of the destinator */
+            if (strcmp(name_dest, clients[i].name) == 0)
+            {
+               sock_dest = clients[i].sock;
+               break;
+            }
+         }
+         if (strlen(name_dest) == 0 && sock_dest == 0)
+         { // chat to all
+            sock_dest = -1;
+         }
+         Client c = {csock, sock_dest, "", ""};
+         strncpy(c.name, name, strlen(name));
+         strncpy(c.name_dest, name_dest, strlen(name_dest));
          for (i = 0; i < actual_his; i++)
          {
             write_client(c.sock, history[i]);
@@ -127,6 +155,15 @@ static void app(void)
             if (FD_ISSET(clients[i].sock, &rdfs))
             {
                Client client = clients[i];
+               int j;
+               for (j = 0; j < actual; j++)
+               { /* Take socket of the destinator */
+                  if (strcmp(client.name_dest, clients[j].name) == 0)
+                  {
+                     client.sock_dest = clients[j].sock;
+                     break;
+                  }
+               }
                int c = read_client(clients[i].sock, buffer);
                if (c == 0) /* client disconnected */
                {
@@ -141,13 +178,46 @@ static void app(void)
                }
                else
                {
-                  send_message_to_all_clients(clients, client, actual, buffer, 0);
-                  strncpy(name, "", BUF_SIZE - 1);
-                  strncpy(name, client.name, strlen(client.name));
-                  strncat(name, " : ", 4);
-                  strncat(name, buffer, strlen(buffer));
-                  strncpy(history[actual_his], name, BUF_SIZE - 1);
-                  actual_his++;
+                  if (client.sock_dest == -1)
+                  { // chat to all
+                     send_message_to_all_clients(clients, client, actual, buffer, 0);
+                     strncpy(name, "", BUF_SIZE - 1);
+                     strncpy(name, client.name, strlen(client.name));
+                     strncat(name, " : ", 4);
+                     strncat(name, buffer, strlen(buffer));
+                     strncpy(history[actual_his], name, BUF_SIZE - 1);
+                     actual_his++;
+                  }
+                  else if (client.sock_dest == 0)
+                  { // destinator is offline
+                     char str[BUF_SIZE];
+                     strncpy(str, "files/", 7);
+                     strncat(str, name_dest, strlen(name_dest));
+                     strncat(str, ".txt", 5);
+                     FILE *read_file = fopen(str, "r");
+                     if (read_file == NULL)
+                     {
+                        FILE *temp = fopen(str, "w");
+                        fprintf(temp, "%s\n", client.name);
+                        fprintf(temp, "%s : %s\n", client.name, buffer);
+                        fclose(temp);
+                     }
+                     else
+                     {
+                        fclose(read_file);
+                        FILE *write_file = fopen(str, "a");
+                        fprintf(write_file, "%s : %s\n", client.name, buffer);
+                        fclose(write_file);
+                     }
+                  }
+                  else
+                  { // chat to client
+                     strncpy(name, "", BUF_SIZE - 1);
+                     strncpy(name, client.name, strlen(client.name));
+                     strncat(name, " : ", 4);
+                     strncat(name, buffer, strlen(buffer));
+                     write_client(client.sock_dest, name);
+                  }
                }
                break;
             }
@@ -161,7 +231,7 @@ static void app(void)
    }
 
    /* Save the history of conversation in file */
-   FILE *file_his = fopen("history.txt", "w");
+   FILE *file_his = fopen("files/history.txt", "w");
    for (i = 0; i < actual_his; i++)
    {
       fprintf(file_his, "%s\n", history[i]);
