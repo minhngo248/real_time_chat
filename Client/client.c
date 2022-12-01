@@ -25,8 +25,9 @@ static void end(void)
 #endif
 }
 
+/* chat with all server */
 static void app(const char *address, const char *name)
-{
+{    
    SOCKET sock = init_connection(address);
    char buffer[BUF_SIZE];
    int i;
@@ -86,25 +87,14 @@ static void app(const char *address, const char *name)
    end_connection(sock);
 }
 
+/* private chat */
 static void app2(const char *address, const char *name, const char *name_dest)
-{
+{    
    SOCKET sock = init_connection(address);
    char buffer[BUF_SIZE];
    int i;
    fd_set rdfs;
    char str[BUF_SIZE];
-   sprintf(str, "files/%s.txt", name);
-   FILE *file = fopen(str, "r");
-   if (file != NULL)
-   {
-      fgets(str, BUF_SIZE, file);
-      while (!feof(file))
-      {
-         printf("%s\n", str);
-         fgets(str, BUF_SIZE, file);
-      }
-      fclose(file);
-   }
    
    sprintf(str, "%s\n%s", name, name_dest);
    /* send our name and our destinator */
@@ -159,6 +149,70 @@ static void app2(const char *address, const char *name, const char *name_dest)
    }
 
    end_connection(sock);
+}
+
+/* Group chat */
+static void app3(const char *address, const char *name, const char *name_group)
+{
+   SOCKET sock = init_connection(address);
+   char buffer[BUF_SIZE];
+   int i;
+   fd_set rdfs;
+   char str[BUF_SIZE];
+   
+   sprintf(str, "%s --group %s", name, name_group);
+   /* send our name and name of group chat */
+   write_server(sock, str);
+
+   while (1)
+   {
+      FD_ZERO(&rdfs);
+
+      /* add STDIN_FILENO */
+      FD_SET(STDIN_FILENO, &rdfs);
+
+      /* add the socket */
+      FD_SET(sock, &rdfs);
+
+      if (select(sock + 1, &rdfs, NULL, NULL, NULL) == -1)
+      {
+         perror("select()");
+         exit(errno);
+      }
+
+      /* something from standard input : i.e keyboard */
+      if (FD_ISSET(STDIN_FILENO, &rdfs))
+      {
+         fgets(buffer, BUF_SIZE - 1, stdin);
+         {
+            char *p = NULL;
+            p = strstr(buffer, "\n");
+            if (p != NULL)
+            {
+               *p = 0;
+            }
+            else
+            {
+               /* fclean */
+               buffer[BUF_SIZE - 1] = 0;
+            }
+         }
+         write_server(sock, buffer);
+      }
+      else if (FD_ISSET(sock, &rdfs))
+      {
+         int n = read_server(sock, buffer);
+         /* server down */
+         if (n == 0)
+         {
+            printf("Server disconnected !\n");
+            break;
+         }
+         puts(buffer);
+      }
+   }
+
+   end_connection(sock);   
 }
 
 static int init_connection(const char *address)
@@ -224,9 +278,9 @@ static void write_server(SOCKET sock, const char *buffer)
 
 int main(int argc, char **argv)
 {
-   if (argc != 3 && argc != 4)
+   if ( argc != 3 && argc != 4 && (argc != 5 || strcmp(argv[3], "--group") != 0) )
    {
-      printf("Usage : %s [address] [pseudo] or %s [address] [pseudo] [pseudo_dest]\n", argv[0], argv[0]);
+      printf("Usage : %s [address] [pseudo] or %s [address] [pseudo] [pseudo_dest]\n or %s [address] [pseudo] --group [name_group]\n", argv[0], argv[0], argv[0]);
       return EXIT_FAILURE;
    }
    FILE *file;
@@ -250,9 +304,13 @@ int main(int argc, char **argv)
          app2(argv[1], argv[2], name_dest);
       }
    }
-   else
+   else if (argc == 4)
    {
       app2(argv[1], argv[2], argv[3]);
+   }
+   else
+   {
+      app3(argv[1], argv[2], argv[4]);
    }
    end();
 

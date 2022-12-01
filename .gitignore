@@ -8,3 +8,5 @@ test_str.c
 # Executable
 Server/server
 Client/client
+
+*.o

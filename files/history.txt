@@ -1,9 +1,5 @@
-a : hello
-b : e
+Minh : hello
+a : hi
+Minh disconnected !
+Minh disconnected !
 b disconnected !
-b : hello
-Minh disconnected !
-a disconnected !
-Minh disconnected !
-a : hello
-a disconnected !

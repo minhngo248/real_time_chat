@@ -8,11 +8,12 @@ PROG_CLIENT = Client/client
 
 SRC_SERVER = Server/server.c 
 SRC_CLIENT = Client/client.c
+SRC_RSA = Cryption/rsa.c
 
 all: ${PROGS}
 
-server: ${SRC_SERVER}
-	${CC} ${SRC_SERVER} -o ${PROG_SERVER}
+server: ${SRC_SERVER} ${SRC_RSA}
+	${CC} ${SRC_SERVER} ${SRC_RSA} -o ${PROG_SERVER}
 
 client: ${SRC_CLIENT}
 	${CC} ${SRC_CLIENT} -o ${PROG_CLIENT}

@@ -23,4 +23,5 @@ Note: pseudos of clients have to be 2-to-2 identical.
 ![image](./img/Server.png)
 2. Restore the history of group chat when a client connects to do group chat and Save history of group chat. Save the conversation in `files/history.txt`
 3. Private discussion of 2 clients in a server.
-4. Save the private chat when destinator is offline. For example, `sender` want to talk to `destinator` but `destinator` is offline. The conversation will be saved in `files/[destinator].txt`. When `destinator` connects, the private conversation and then the group conversation is restored. They will be shown on the `destinator`'s screen.
+4. Save the private chat when destinator is offline. For example, `sender` want to talk to `destinator` but `destinator` is offline. The conversation will be saved in `files/[destinator].txt`. When `destinator` connects, the private conversation and then the conversation of all server is restored. They will be shown on the `destinator`'s screen.
+![image](./img/private_chat.png)

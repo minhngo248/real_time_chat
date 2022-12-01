@@ -11,6 +11,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h> /* close */
 #include <netdb.h> /* gethostbyname */
 #define INVALID_SOCKET -1
@@ -30,10 +32,13 @@ typedef struct in_addr IN_ADDR;
 #define CRLF        "\r\n"
 #define PORT         1977
 #define MAX_CLIENTS     100
+#define MAX_GROUPS      10
 
 #define BUF_SIZE    1024
 
 #include "client2.h"
+#include "../Cryption/rsa.h"
+#include "group.h"
 
 static void init(void);
 static void end(void);
@@ -45,5 +50,10 @@ static void write_client(SOCKET sock, const char *buffer);
 static void send_message_to_all_clients(Client *clients, Client client, int actual, const char *buffer, char from_server);
 static void remove_client(Client *clients, int to_remove, int *actual);
 static void clear_clients(Client *clients, int actual);
+static void restore_history(char history[][BUF_SIZE], int *actual_his);
+static void save_history(const char history[][BUF_SIZE], const int actual_his);
+static void restore_message_group(char *message, const char *name_group);
+static void save_message_group(const char *message, const char *name_group);
+static void restore_private_message(char *message, const char *name, const char* name_dest);
 
 #endif /* guard */
