@@ -9,7 +9,8 @@ typedef struct
    int nb_clients;
    Client clients[10];
    char name[BUF_SIZE];
-   char message[4*BUF_SIZE];
+   int nb_mess;
+   char message[BUF_SIZE][30];
 }Group;
 
 

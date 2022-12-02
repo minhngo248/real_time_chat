@@ -1,3 +1,0 @@
-c
-c : helo
-d : hello

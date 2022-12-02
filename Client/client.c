@@ -283,26 +283,12 @@ int main(int argc, char **argv)
       printf("Usage : %s [address] [pseudo] or %s [address] [pseudo] [pseudo_dest]\n or %s [address] [pseudo] --group [name_group]\n", argv[0], argv[0], argv[0]);
       return EXIT_FAILURE;
    }
-   FILE *file;
-   char str[BUF_SIZE];
-   char name_dest[BUF_SIZE];
-   sprintf(str, "files/%s.txt", argv[2]);
    
    init();
 
    if (argc == 3)
    {
-      file = fopen(str, "r");
-      if (file == NULL)
-      {
-         app(argv[1], argv[2]);
-      }
-      else
-      {
-         fgets(name_dest, BUF_SIZE, file);
-         fclose(file);
-         app2(argv[1], argv[2], name_dest);
-      }
+      app(argv[1], argv[2]);
    }
    else if (argc == 4)
    {

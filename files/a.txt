@@ -5,3 +5,4 @@ Minh : hello from the other side a
 Minh : you are online no ?
 a : kiki Minh
 a : yeah
+Minh : hello a

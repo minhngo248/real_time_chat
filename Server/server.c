@@ -39,7 +39,7 @@ static void app(void)
    int actual_group = 0;
    int max = sock;
 
-   int sock_dest = -2;
+   int sock_dest = 0;
    /* an array for all clients */
    Client clients[MAX_CLIENTS];
    /* an array for all groups */
@@ -98,6 +98,7 @@ static void app(void)
          max = csock > max ? csock : max;
          FD_SET(csock, &rdfs);
          Client c = {csock, sock_dest, "", "", ""};
+         
          if (strstr(buffer, "--group"))
          {
             /* take name of a client */
@@ -115,19 +116,21 @@ static void app(void)
                name_group[j - i - 9] = buffer[j];
             }
             name_group[j - i - 9] = '\0';
-
             /* Find whether group exist */
             for (i = 0; i < actual_group; i++)
             {
                /* persist */
-               if (strcmp(name_group, groups[i].name))
+               if (strcmp(name_group, groups[i].name) == 0)
                {
                   int nb_clients = groups[i].nb_clients;
                   groups[i].clients[nb_clients] = c;
-                  printf("%d\n", groups[i].nb_clients);
+                  strncpy(groups[i].clients[nb_clients].name, name, strlen(name) + 1);
+                  strncpy(groups[i].clients[nb_clients].name_group, name_group, strlen(name_group) + 1);
+                  groups[i].clients[nb_clients].sock_dest = -2;
                   groups[i].nb_clients++;
                   strncpy(c.name, name, strlen(name));
                   strncpy(c.name_group, name_group, strlen(name_group));
+                  c.sock_dest = -2;
                   break;
                }
             }
@@ -136,9 +139,13 @@ static void app(void)
             {
                Group group;
                group.clients[0] = c;
+               group.nb_mess = 0;
+               strncpy(group.clients[0].name, name, strlen(name) + 1);
+               strncpy(group.clients[0].name_group, name_group, strlen(name_group) + 1);
+               group.clients[0].sock_dest = -2;
                group.nb_clients = 1;
                strncpy(group.name, name_group, strlen(name_group));
-               strncpy(group.message, "", 1);
+               c.sock_dest = -2;
                strncpy(c.name, name, strlen(name));
                strncpy(c.name_group, name_group, strlen(name_group));
                groups[actual_group] = group;
@@ -160,11 +167,11 @@ static void app(void)
             strncat(message_group, "\n", 2);
             char mess[BUF_SIZE];
             restore_message_group(mess, name_group);
-            strncat(message_group, mess, strlen(mess) + 1);
-            strncpy(init_buffer, message_his, strlen(message_his) + 1);
-            strncat(init_buffer, message_group, strlen(message_group) + 1);
-            strncat(init_buffer, "\nYou are in the group chat ", 29);
-            strncat(init_buffer, name_group, strlen(name_group)+1);
+            strncat(message_group, mess, strlen(mess));
+            strncpy(init_buffer, message_his, strlen(message_his));
+            strncat(init_buffer, message_group, strlen(message_group));
+            strncat(init_buffer, "\nYou are in the group chat ", 30);
+            strncat(init_buffer, name_group, strlen(name_group));
             strncat(init_buffer, "\n", 2);
             write_client(csock, init_buffer);
          }
@@ -222,16 +229,19 @@ static void app(void)
             }
             strncpy(init_buffer, message_his, strlen(message_his) + 1);
             strncat(init_buffer, message_private, strlen(message_private) + 1);
-            if (sock_dest == -1) 
+            c.sock_dest = sock_dest;
+            if (c.sock_dest == -1)
             {
                strncat(init_buffer, "\nYou are talking to all server\n", 33);
             }
-            else 
+            else if (c.sock_dest >= 0)
             {
                strncat(init_buffer, "\nYou are talking to client ", 30);
-               strncat(init_buffer, name_dest, strlen(name_dest)+1);
+               strncat(init_buffer, name_dest, strlen(name_dest) + 1);
                strncat(init_buffer, "\n", 2);
             }
+            
+            strncpy(c.name_group, "", 1);
             write_client(csock, init_buffer);
          }
          clients[actual] = c;
@@ -275,33 +285,37 @@ static void app(void)
                else
                {
                   /* Group chat */
-                  if (strcmp(client.name_group, "") != 0)
+                  if (strlen(client.name_group) > 0)
                   {
                      Group group;
+                     int k;
                      /* Find group chat */
-                     for ( i = 0 ; i < actual_group ; i++)
+                     for (k = 0; k < actual_group; k++)
                      {
-                        if (strcmp(client.name_group, groups[i].name) == 0)
+                        if (strcmp(client.name_group, groups[k].name) == 0)
                         {
-                           group = groups[i];
+                           group = groups[k];
+                           /* Concatenate client's message */
+                           strncpy(name, client.name, strlen(client.name) + 1);
+                           strncat(name, " : ", 4);
+                           strncat(name, buffer, strlen(buffer) + 1);
+                           strncat(name, "\n", 2);
+                           strncpy(groups[k].message[group.nb_mess], name, strlen(name) + 1);
+                           groups[k].nb_mess++;
                            break;
                         }
                      }
 
-                     /* Concatenate client's message */
-                     strncpy(name, client.name, strlen(client.name)+1);
-                     strncat(name, " : ", 4);
-                     strncat(name, buffer, strlen(buffer)+1);
-                     strncat(name, "\n", 2);
-                     strncat(group.message, name, strlen(name)+1);
-
                      /* Send to other clients in group */
                      int size = strlen(name);
-                     name[size-1] = '\0';
-                     for (i = 0 ; i < group.nb_clients ; i++) 
+                     name[size - 1] = '\0';
+                     for (k = 0; k < group.nb_clients; k++)
                      {
-                        SOCKET sock_other = group.clients[i].sock;
-                        write_client(sock_dest, name);
+                        if (strcmp(group.clients[k].name, client.name) != 0)
+                        {
+                           SOCKET sock_other = group.clients[k].sock;
+                           write_client(sock_other, name);
+                        }
                      }
                   }
                   else
@@ -360,9 +374,9 @@ static void app(void)
    }
 
    save_history(history, actual_his);
-   for (i = 0; i < actual_group ; i++)
+   for (i = 0; i < actual_group; i++)
    {
-      save_message_group(groups[i].message, groups[i].name);
+      save_message_group(groups[i].message, groups[i].nb_mess, groups[i].name);
    }
    clear_clients(clients, actual);
    end_connection(sock);
@@ -526,16 +540,16 @@ static void restore_message_group(char *message, const char *name_group)
    }
 }
 
-static void save_message_group(const char *message, const char *name_group)
+static void save_message_group(const char message[][30], const int nb_mess, const char *name_group)
 {
    char path[100];
    char c;
    sprintf(path, "files/group_%s.txt", name_group);
    FILE *file = fopen(path, "w");
    int i;
-   for (i = 0; i < strlen(message); i++)
+   for (i = 0; i < nb_mess; i++)
    {
-      fputc(message[i], file);
+      fputs(message[i], file);
    }
    fclose(file);
 }

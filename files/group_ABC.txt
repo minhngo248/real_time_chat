@@ -1,2 +1,4 @@
-a : Yeah
-b : no
+a : hi Minh
+Minh : hi a
+a : hi Minh
+c : hello Minh and a

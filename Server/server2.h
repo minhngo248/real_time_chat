@@ -53,7 +53,7 @@ static void clear_clients(Client *clients, int actual);
 static void restore_history(char history[][BUF_SIZE], int *actual_his);
 static void save_history(const char history[][BUF_SIZE], const int actual_his);
 static void restore_message_group(char *message, const char *name_group);
-static void save_message_group(const char *message, const char *name_group);
+static void save_message_group(const char message[][30], const int nb_mess, const char *name_group);
 static void restore_private_message(char *message, const char *name, const char* name_dest);
 
 #endif /* guard */
