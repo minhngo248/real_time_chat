@@ -98,7 +98,7 @@ static void app(void)
          max = csock > max ? csock : max;
          FD_SET(csock, &rdfs);
          Client c = {csock, sock_dest, "", "", ""};
-         
+
          if (strstr(buffer, "--group"))
          {
             /* take name of a client */
@@ -116,41 +116,16 @@ static void app(void)
                name_group[j - i - 9] = buffer[j];
             }
             name_group[j - i - 9] = '\0';
-            /* Find whether group exist */
-            for (i = 0; i < actual_group; i++)
-            {
-               /* persist */
-               if (strcmp(name_group, groups[i].name) == 0)
-               {
-                  int nb_clients = groups[i].nb_clients;
-                  groups[i].clients[nb_clients] = c;
-                  strncpy(groups[i].clients[nb_clients].name, name, strlen(name) + 1);
-                  strncpy(groups[i].clients[nb_clients].name_group, name_group, strlen(name_group) + 1);
-                  groups[i].clients[nb_clients].sock_dest = -2;
-                  groups[i].nb_clients++;
-                  strncpy(c.name, name, strlen(name));
-                  strncpy(c.name_group, name_group, strlen(name_group));
-                  c.sock_dest = -2;
-                  break;
-               }
-            }
-            /* If group does not exist */
-            if (i == actual_group)
-            {
-               Group group;
-               group.clients[0] = c;
-               group.nb_mess = 0;
-               strncpy(group.clients[0].name, name, strlen(name) + 1);
-               strncpy(group.clients[0].name_group, name_group, strlen(name_group) + 1);
-               group.clients[0].sock_dest = -2;
-               group.nb_clients = 1;
-               strncpy(group.name, name_group, strlen(name_group));
-               c.sock_dest = -2;
-               strncpy(c.name, name, strlen(name));
-               strncpy(c.name_group, name_group, strlen(name_group));
-               groups[actual_group] = group;
-               actual_group++;
-            }
+
+            Group g;
+            find_group_chat(&g, name_group, groups, actual_group);
+            c.sock_dest = -2;            
+            strncpy(c.name, name, strlen(name));
+            strncpy(c.name_group, name_group, strlen(name_group));
+            strncpy(g.name, name_group, strlen(name_group));
+            add_client_to_group(c, &g);
+            add_group(g, groups, &actual_group);
+
             /* merge buffer */
             char message_his[BUF_SIZE];
             strncpy(message_his, "Last message of all server\n", 28);
@@ -207,6 +182,8 @@ static void app(void)
             }
             strncpy(c.name, name, strlen(name));
             strncpy(c.name_dest, name_dest, strlen(name_dest));
+            c.sock_dest = sock_dest;
+            strncpy(c.name_group, "", 1);
             /* merge buffer */
             char message_his[BUF_SIZE];
             strncpy(message_his, "Last message of all server\n", 28);
@@ -218,18 +195,17 @@ static void app(void)
                strncat(message_his, s, strlen(s) + 1);
             }
             char message_private[BUF_SIZE] = "";
-            if (strcmp(name_dest, "") != 0)
+            if (strlen(c.name_dest) > 0)
             {
                strncpy(message_private, "Last message with ", 20);
-               strncat(message_private, name_dest, strlen(name_dest) + 1);
+               strncat(message_private, c.name_dest, strlen(c.name_dest) + 1);
                strncat(message_private, "\n", 2);
                char mess[BUF_SIZE];
-               restore_private_message(mess, name, name_dest);
+               restore_private_message(mess, c.name, c.name_dest);
                strncat(message_private, mess, strlen(mess) + 1);
             }
             strncpy(init_buffer, message_his, strlen(message_his) + 1);
             strncat(init_buffer, message_private, strlen(message_private) + 1);
-            c.sock_dest = sock_dest;
             if (c.sock_dest == -1)
             {
                strncat(init_buffer, "\nYou are talking to all server\n", 33);
@@ -237,15 +213,13 @@ static void app(void)
             else if (c.sock_dest >= 0)
             {
                strncat(init_buffer, "\nYou are talking to client ", 30);
-               strncat(init_buffer, name_dest, strlen(name_dest) + 1);
+               strncat(init_buffer, c.name_dest, strlen(c.name_dest) + 1);
                strncat(init_buffer, "\n", 2);
             }
-            
-            strncpy(c.name_group, "", 1);
+
             write_client(csock, init_buffer);
          }
-         clients[actual] = c;
-         actual++;
+         add_client(c, clients, &actual);
       }
       else
       {
@@ -266,8 +240,8 @@ static void app(void)
                      break;
                   }
                }
-               if (j == actual && client.sock_dest != -1 && client.sock_dest != 0)
-               {
+               if (j == actual && client.sock_dest != -1 && client.sock_dest != -2)
+               { // destinator is offline
                   client.sock_dest = 0;
                }
                int c = read_client(clients[i].sock, buffer);
@@ -285,7 +259,7 @@ static void app(void)
                else
                {
                   /* Group chat */
-                  if (strlen(client.name_group) > 0)
+                  if (client.sock_dest == -2)
                   {
                      Group group;
                      int k;
@@ -311,55 +285,52 @@ static void app(void)
                      name[size - 1] = '\0';
                      for (k = 0; k < group.nb_clients; k++)
                      {
-                        if (strcmp(group.clients[k].name, client.name) != 0)
+                        if (strcmp(group.clients[k], client.name) != 0)
                         {
-                           SOCKET sock_other = group.clients[k].sock;
+                           SOCKET sock_other = find_socket_client_by_name(group.clients[k], clients, actual);
                            write_client(sock_other, name);
                         }
                      }
                   }
-                  else
-                  {
-                     if (client.sock_dest == -1)
-                     { // chat to all server
-                        send_message_to_all_clients(clients, client, actual, buffer, 0);
-                        strncpy(name, "", BUF_SIZE - 1);
-                        strncpy(name, client.name, strlen(client.name));
-                        strncat(name, " : ", 4);
-                        strncat(name, buffer, strlen(buffer));
-                        strncpy(history[actual_his], name, BUF_SIZE - 1);
-                        actual_his++;
-                     }
-                     else if (client.sock_dest == 0)
-                     { // destinator is offline
-                        char str[BUF_SIZE];
-                        strncpy(str, "files/", 7);
-                        strncat(str, client.name_dest, strlen(client.name_dest));
-                        strncat(str, ".txt", 5);
-                        FILE *read_file = fopen(str, "r");
-                        if (read_file == NULL)
-                        {
-                           FILE *temp = fopen(str, "w");
-                           fprintf(temp, "%s\n", client.name);
-                           fprintf(temp, "%s : %s\n", client.name, buffer);
-                           fclose(temp);
-                        }
-                        else
-                        {
-                           fclose(read_file);
-                           FILE *write_file = fopen(str, "a");
-                           fprintf(write_file, "%s : %s\n", client.name, buffer);
-                           fclose(write_file);
-                        }
+                  else if (client.sock_dest == -1)
+                  { // chat to all server
+                     send_message_to_all_clients(clients, client, actual, buffer, 0);
+                     strncpy(name, "", BUF_SIZE - 1);
+                     strncpy(name, client.name, strlen(client.name));
+                     strncat(name, " : ", 4);
+                     strncat(name, buffer, strlen(buffer));
+                     strncpy(history[actual_his], name, BUF_SIZE - 1);
+                     actual_his++;
+                  }
+                  else if (client.sock_dest == 0)
+                  { // destinator is offline
+                     char str[BUF_SIZE];
+                     strncpy(str, "files/", 7);
+                     strncat(str, client.name_dest, strlen(client.name_dest));
+                     strncat(str, ".txt", 5);
+                     FILE *read_file = fopen(str, "r");
+                     if (read_file == NULL)
+                     {
+                        FILE *temp = fopen(str, "w");
+                        fprintf(temp, "%s\n", client.name);
+                        fprintf(temp, "%s : %s\n", client.name, buffer);
+                        fclose(temp);
                      }
                      else
-                     { // chat to client
-                        strncpy(name, "", BUF_SIZE - 1);
-                        strncpy(name, client.name, strlen(client.name));
-                        strncat(name, " : ", 4);
-                        strncat(name, buffer, strlen(buffer));
-                        write_client(client.sock_dest, name);
+                     {
+                        fclose(read_file);
+                        FILE *write_file = fopen(str, "a");
+                        fprintf(write_file, "%s : %s\n", client.name, buffer);
+                        fclose(write_file);
                      }
+                  }
+                  else if (client.sock_dest > 0)
+                  { // chat to client
+                     strncpy(name, "", BUF_SIZE - 1);
+                     strncpy(name, client.name, strlen(client.name));
+                     strncat(name, " : ", 4);
+                     strncat(name, buffer, strlen(buffer));
+                     write_client(client.sock_dest, name);
                   }
                }
                break;
@@ -380,6 +351,110 @@ static void app(void)
    }
    clear_clients(clients, actual);
    end_connection(sock);
+}
+
+static void find_group_chat(Group* g, const char* name_group, Group* groups, int actual_group)
+{
+   int i;
+   for (i = 0 ; i < actual_group ; i++) 
+   {
+      if (strcmp(name_group, groups[i].name) == 0)
+      {
+         g = &groups[i];
+         return;
+      }
+   }
+   strncpy(g->name, name_group, strlen(name_group));
+   g->nb_clients = 0;
+   g->nb_mess = 0;
+}
+
+static SOCKET find_socket_client_by_name(const char *name, Client *clients, const int actual)
+{
+   int i;
+   for (i = 0; i < actual; i++)
+   {
+      if (strcmp(clients[i].name, name) == 0)
+      {
+         return clients[i].sock;
+      }
+   }
+   return -3; // not found
+}
+
+static void add_client(Client c, Client *clients, int *actual)
+{
+   int i;
+   for (i = 0; i < *actual; i++)
+   {
+      if (strcmp(c.name, clients[i].name) == 0)
+      {
+         clients[i].sock = c.sock;
+         clients[i].sock_dest = c.sock_dest;
+         strncpy(clients[i].name_dest, c.name_dest, strlen(c.name_dest));
+         strncpy(clients[i].name_group, c.name_group, strlen(c.name_group));
+         return;
+      }
+   }
+   clients[i] = c;
+   clients[i].sock = c.sock;
+   clients[i].sock_dest = c.sock_dest;
+   strncpy(clients[i].name, c.name, strlen(c.name));
+   strncpy(clients[i].name_dest, c.name_dest, strlen(c.name_dest));
+   strncpy(clients[i].name_group, c.name_group, strlen(c.name_group));
+   (*actual)++;
+}
+
+static void add_group(Group g, Group *groups, int *actual_group)
+{
+   int i, j;
+   for (i = 0; i < *actual_group; i++)
+   {
+      if (strcmp(g.name, groups[i].name) == 0)
+      {
+         groups[i].nb_clients = g.nb_clients;
+         for (j = 0; j < g.nb_clients; j++)
+         {
+            strncpy(groups[i].clients[j], g.clients[j], strlen(g.clients[j]));
+         }
+
+         groups[i].nb_mess = g.nb_mess;
+         for (j = 0; j < g.nb_mess; j++)
+         {
+            strncpy(groups[i].message[j], g.message[j], strlen(g.message[j]));
+         }
+         return;
+      }
+   }
+   groups[i] = g;
+   groups[i].nb_clients = g.nb_clients;
+   for (j = 0; j < g.nb_clients; j++)
+   {
+      strncpy(groups[i].clients[j], g.clients[j], strlen(g.clients[j]));
+   }
+
+   strncpy(groups[i].name, g.name, strlen(g.name));
+   groups[i].nb_mess = g.nb_mess;
+   for (j = 0; j < g.nb_mess; j++)
+   {
+      strncpy(groups[i].message[j], g.message[j], strlen(g.message[j]));
+   }
+   (*actual_group)++;
+}
+
+static void add_client_to_group(Client c, Group *g)
+{
+   int i;
+   for (i = 0; i < g->nb_clients; i++)
+   {
+      if (strcmp(c.name, g->clients[i]) == 0)
+      {
+         strncpy(g->clients[i], c.name, strlen(c.name));      
+         return;
+      }
+   }
+   strncpy(g->clients[i], c.name, strlen(c.name));
+   g->nb_clients++;
 }
 
 static void clear_clients(Client *clients, int actual)

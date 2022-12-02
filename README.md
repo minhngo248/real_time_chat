@@ -11,7 +11,7 @@ For example
 ```
 Client/client 127.0.0.1 Minh
 ```
-I am Minh and I would to do group chat in localhost.
+I am Minh and I would to do server chat in localhost.
 ```
 Client/client 127.0.0.1 Minh a
 ```
@@ -28,7 +28,12 @@ Note: pseudos of clients have to be 2-to-2 identical.
 ![image](./img/Server.png)
 2. Restore the history of all server chat when a client connects to do the chat and Save history of server chat. Save the conversation in `files/history.txt`
 3. Private discussion of 2 clients in a server.
-4. Save the private chat when destinator is offline. For example, `sender` want to talk to `destinator` but `destinator` is offline. The conversation will be saved in `files/[destinator].txt`. When `destinator` connects, the private conversation and then the conversation of all server is restored. They will be shown on the `destinator`'s screen.
+4. Save the private chat when destinator is offline. For example, `sender` want to talk to `destinator` but `destinator` is offline. The conversation will be saved in `files/[destinator].txt`. When `destinator` connects, 
++ The conversation of all server is restored first, 
++ and then last conversation with `destinator` will be restored. (image below)
 ![image](./img/private_chat.png)
 5. We do the group chat. If the group already exist, the message of the group is restored from a file named `files/group_[nom_of_group].txt`. When the server is down, all history of group conversation will be saved in the same file.
++ The conversation of all server is restored first, 
++ and then last conversation in the group chat will be restored. (image below)
+![image](./img/group_chat.png)
 6. Message cryptage by "chiffrement RSA". We haven't finished this part but our idea is to encrypt all the history of conversations and then save in a file. With private and public key of method RSA, we can retrieve the original message. 
