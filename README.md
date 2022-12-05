@@ -37,3 +37,4 @@ Note: pseudos of clients have to be 2-to-2 identical.
 + and then last conversation in the group chat will be restored. (image below)
 ![image](./img/group_chat.png)
 6. Message cryptage by "chiffrement RSA". We haven't finished this part but our idea is to encrypt all the history of conversations and then save in a file. With private and public key of method RSA, we can retrieve the original message. 
+7. If you want to change chat room, like you are currently in group chat `ABC`, but now you want to chat with client `a`, you have to close this chat room by pressing Ctrl+C to end the client session. Then you put the command `Client/client 127.0.0.1 [your_pseudo] a` to chat with `a`
